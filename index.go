@@ -10,6 +10,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"net/http"
+	"time"
 )
 
 func GetEntries(cnt int) ([]map[string]string, error) {
@@ -32,4 +33,21 @@ func GetEntries(cnt int) ([]map[string]string, error) {
 		}
 	}
 	return out, nil
+}
+
+func ConsumeEntries() <-chan map[string]string {
+	out := make(chan map[string]string)
+	go func() {
+		for {
+			ents, err := GetEntries(2000)
+			if err != nil {
+				time.Sleep(5 * time.Minute)
+				continue
+			}
+			for i := range ents {
+				out <- ents[i]
+			}
+		}
+	}()
+	return out
 }
