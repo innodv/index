@@ -13,33 +13,30 @@ import (
 	"time"
 )
 
-func GetEntries(cnt int) ([]map[string]string, error) {
+func GetEntries(timestamp string) ([]map[string]string, error) {
 	out := []map[string]string{}
-	timestamp := ""
-	for i := 0; i < cnt; i += 2000 {
-		resp, err := http.Get("https://index.golang.org/index?since=" + timestamp)
+	resp, err := http.Get("https://index.golang.org/index?since=" + timestamp)
+	if err != nil {
+		return nil, err
+	}
+	rdr := bufio.NewReader(resp.Body)
+	for line, err := rdr.ReadBytes('\n'); err == nil; line, err = rdr.ReadBytes('\n') {
+		var data map[string]string
+		err := json.Unmarshal(line, &data)
 		if err != nil {
 			return nil, err
 		}
-		rdr := bufio.NewReader(resp.Body)
-		for line, err := rdr.ReadBytes('\n'); err == nil; line, err = rdr.ReadBytes('\n') {
-			var data map[string]string
-			err := json.Unmarshal(line, &data)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, data)
-			timestamp = data["Timestamp"]
-		}
+		out = append(out, data)
 	}
 	return out, nil
 }
 
 func ConsumeEntries() <-chan map[string]string {
 	out := make(chan map[string]string)
+	timestamp := ""
 	go func() {
-		for {
-			ents, err := GetEntries(2000)
+		for i := 0; true; i += 2000 {
+			ents, err := GetEntries(timestamp)
 			if err != nil {
 				time.Sleep(5 * time.Minute)
 				continue
@@ -47,6 +44,7 @@ func ConsumeEntries() <-chan map[string]string {
 			for i := range ents {
 				out <- ents[i]
 			}
+			timestamp = ents[len(ents)-1]["Timestamp"]
 		}
 	}()
 	return out

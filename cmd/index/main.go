@@ -13,9 +13,23 @@ import (
 )
 
 func main() {
-	entries, err := index.GetEntries(10000)
-	if err != nil {
-		panic(err)
+	out := map[string]interface{}{}
+	target := 100000
+	entries := index.ConsumeEntries()
+	cnt := 0
+	for entry := range entries {
+		if cnt == target {
+			break
+		}
+		name := entry["Path"] + entry["Version"]
+		out[name] = nil
+		cnt++
+		if cnt%10000 == 0 {
+			fmt.Printf("%d\n", cnt)
+		}
 	}
-	fmt.Println(entries)
+	if cnt != target {
+		fmt.Println("failed")
+	}
+	fmt.Println("success")
 }
